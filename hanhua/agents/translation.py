@@ -129,8 +129,8 @@ class TranslationAgents:
             dst = dst.replace('...', '……').replace('—', '―')
         # copy the source's leading/trailing whitespace (continuation space, trailing \n, padding) exactly
         core = dst.strip(' \n\t　')
-        head = src[:len(src) - len(src.lstrip(' \n\t'))]
-        tail = src[len(src.rstrip(' \n\t')):]
+        head = src[:len(src) - len(src.lstrip(' \n\t　'))]
+        tail = src[len(src.rstrip(' \n\t　')):]
         return head + core + tail
 
     def translate_batch(self, batch):

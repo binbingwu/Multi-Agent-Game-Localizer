@@ -300,8 +300,9 @@ class System4Engine(Engine):
             if i >= len(lines):
                 problems.append('%s: 超出范围' % k)
                 continue
-            got = ''.join(rev.get(c, c) for c in lines[i])
-            want = self.normalize(v).replace('\n', '\\n')
+            # SJIS 0x8160 decodes as U+301C in alice-tools but U+FF5E in Python: same glyph in game
+            got = ''.join(rev.get(c, c) for c in lines[i]).replace('\u301c', '\uff5e')
+            want = self.normalize(v).replace('\n', '\\n').replace('\u301c', '\uff5e')
             if got.replace('\\"', '"') != want and got != want:
                 problems.append('%s: 写回内容不一致' % k)
             else:
