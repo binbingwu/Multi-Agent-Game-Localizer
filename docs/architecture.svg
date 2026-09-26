@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="810" viewBox="0 0 1000 810" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#1b2a4a" flood-opacity="0.12"/>
+    </filter>
+    <marker id="ar" markerWidth="12" markerHeight="12" refX="6" refY="6" orient="auto">
+      <path d="M1,1 L11,6 L1,11 Z" fill="#8a94a8"/>
+    </marker>
+  </defs>
+  <rect width="1000" height="810" rx="20" fill="#ffffff"/>
+  <rect x="1" y="1" width="998" height="808" rx="20" fill="none" stroke="#e3e7ef" stroke-width="2"/>
+
+  <text x="60" y="68" font-size="30" font-weight="700" fill="#1b2330">AI 游戏汉化系统</text>
+  <text x="60" y="104" font-size="18" fill="#6b7385">由 Orchestrator 统一调度，专门的 Agent 执行不同任务</text>
+
+  <!-- Orchestrator -->
+  <g filter="url(#sh)">
+    <rect x="150" y="135" width="700" height="140" rx="18" fill="#f5f8ff" stroke="#5b7fd6" stroke-width="2.5"/>
+  </g>
+  <rect x="440" y="152" width="120" height="30" rx="15" fill="#dfe8ff"/>
+  <text x="500" y="173" text-anchor="middle" font-size="16" font-weight="700" fill="#2f55b4">主控 · Claude</text>
+  <text x="500" y="220" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="700" fill="#1b2330">Orchestrator</text>
+  <text x="500" y="256" text-anchor="middle" font-size="17" fill="#556075">扫描项目 · 分析任务 · 制定翻译策略 · 编写引擎插件 · 把关质量</text>
+
+  <line x1="500" y1="280" x2="500" y2="312" stroke="#8a94a8" stroke-width="2.5" marker-end="url(#ar)"/>
+
+  <!-- agent cards -->
+  <g filter="url(#sh)">
+    <rect x="60" y="322" width="425" height="140" rx="16" fill="#ffffff" stroke="#dde2ec" stroke-width="2"/>
+    <rect x="515" y="322" width="425" height="140" rx="16" fill="#ffffff" stroke="#dde2ec" stroke-width="2"/>
+    <rect x="60" y="482" width="425" height="140" rx="16" fill="#ffffff" stroke="#dde2ec" stroke-width="2"/>
+    <rect x="515" y="482" width="425" height="140" rx="16" fill="#ffffff" stroke="#dde2ec" stroke-width="2"/>
+  </g>
+
+  <text x="272" y="372" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#1b2330">Extraction Agent</text>
+  <text x="272" y="408" text-anchor="middle" font-size="17" fill="#556075">定位游戏文本、解析资源文件</text>
+  <rect x="197" y="422" width="150" height="26" rx="13" fill="#fff1dd"/>
+  <text x="272" y="441" text-anchor="middle" font-size="14" fill="#b56a00">引擎插件</text>
+
+  <text x="727" y="372" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#1b2330">Context Agent</text>
+  <text x="727" y="408" text-anchor="middle" font-size="17" fill="#556075">分析剧情、角色和术语</text>
+  <rect x="652" y="422" width="150" height="26" rx="13" fill="#e9e4ff"/>
+  <text x="727" y="441" text-anchor="middle" font-size="14" fill="#5b3fc4">本地小模型</text>
+
+  <text x="272" y="532" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#1b2330">Translation Agents</text>
+  <text x="272" y="568" text-anchor="middle" font-size="17" fill="#556075">并行批量翻译游戏文本</text>
+  <rect x="182" y="582" width="180" height="26" rx="13" fill="#e9e4ff"/>
+  <text x="272" y="601" text-anchor="middle" font-size="14" fill="#5b3fc4">本地小模型 × N 路并行</text>
+
+  <text x="727" y="532" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#1b2330">QA Agent</text>
+  <text x="727" y="568" text-anchor="middle" font-size="17" fill="#556075">检查翻译质量和文件结构</text>
+  <rect x="632" y="582" width="190" height="26" rx="13" fill="#e2f5ea"/>
+  <text x="727" y="601" text-anchor="middle" font-size="14" fill="#23864f">规则质检 · 不合格退回</text>
+
+  <!-- retry loop between translation and QA -->
+  <rect x="470" y="539" width="60" height="26" rx="13" fill="#fdecec" stroke="#e7a3a1"/>
+  <text x="500" y="557" text-anchor="middle" font-size="13" fill="#c0392b">⇄ 重译</text>
+
+  <line x1="500" y1="628" x2="500" y2="652" stroke="#8a94a8" stroke-width="2.5" marker-end="url(#ar)"/>
+
+  <!-- Output -->
+  <g filter="url(#sh)">
+    <rect x="150" y="660" width="700" height="125" rx="18" fill="#f3fbf6" stroke="#3a9a62" stroke-width="2.5"/>
+  </g>
+  <rect x="455" y="676" width="90" height="28" rx="14" fill="#d8f1e2"/>
+  <text x="500" y="696" text-anchor="middle" font-size="16" font-weight="700" fill="#23864f">输出</text>
+  <text x="500" y="737" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#1b2330">Build &amp; Validation</text>
+  <text x="500" y="768" text-anchor="middle" font-size="16" fill="#556075">重新生成游戏资源 · 回读校验 · 安装补丁 · 启动游戏截图测试</text>
+</svg>

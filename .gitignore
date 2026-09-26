@@ -1,0 +1,16 @@
+# large binaries and downloads (fetched by `python -m hanhua setup`)
+models/
+runtime/
+downloads/
+tools/alice-tools/
+venv/
+
+# per-game workspaces contain extracted game text (copyrighted) and game files
+projects/*
+!projects/.gitkeep
+
+__pycache__/
+*.pyc
+*.jpg
+*.png
+*.log

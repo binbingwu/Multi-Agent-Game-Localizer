@@ -1,0 +1,32 @@
+{
+  "llm": {
+    "server_exe": "runtime/llama/llama-server.exe",
+    "model": "models/Qwen3.5-9B-Q6_K.gguf",
+    "host": "127.0.0.1",
+    "port": 8765,
+    "ctx_size": 49152,
+    "parallel": 8,
+    "gpu_layers": 99,
+    "temperature": 0.3,
+    "top_p": 0.9,
+    "max_tokens": 4096,
+    "request_timeout": 600,
+    "extra_args": ["--flash-attn", "on"]
+  },
+  "translation": {
+    "source_lang": "English",
+    "target_lang": "简体中文",
+    "batch_size": 16,
+    "context_lines": 6,
+    "max_attempts": 3,
+    "workers": 8
+  },
+  "qa": {
+    "max_len_ratio": 1.6,
+    "min_len_ratio": 0.12,
+    "allowed_latin": ["G", "HP", "BP", "EXP", "LV", "DX", "V2", "CEO", "IV", "OK", "CG", "SP", "MP", "AP"]
+  },
+  "font": {
+    "ttf": ["C:/Windows/Fonts/msyh.ttc", "C:/Windows/Fonts/msyhbd.ttc", "C:/Windows/Fonts/msyhl.ttc"]
+  }
+}
