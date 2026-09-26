@@ -77,3 +77,20 @@ def list_projects():
     if not os.path.isdir(PROJECTS):
         return []
     return sorted(d for d in os.listdir(PROJECTS) if os.path.exists(os.path.join(PROJECTS, d, 'project.json')))
+
+
+class keep_awake:
+    """Stop Windows from sleeping while a long run is in progress (display may still turn off)."""
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+
+    def __enter__(self):
+        if os.name == 'nt':
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(self.ES_CONTINUOUS | self.ES_SYSTEM_REQUIRED)
+        return self
+
+    def __exit__(self, *exc):
+        if os.name == 'nt':
+            import ctypes
+            ctypes.windll.kernel32.SetThreadExecutionState(self.ES_CONTINUOUS)
+        return False

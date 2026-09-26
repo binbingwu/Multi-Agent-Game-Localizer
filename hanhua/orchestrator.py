@@ -2,7 +2,7 @@
 import os
 import random
 
-from .common import Workspace, load_config, read_json
+from .common import Workspace, load_config, read_json, keep_awake
 from .langs import get_lang
 from .db import DB
 from .engines import detect_engine, get_engine
@@ -94,6 +94,10 @@ class Orchestrator:
 
     # ------------------------------------------------------------- pipeline
     def run(self, stages=('extract', 'context', 'translate', 'build'), limit=None, install=False):
+        with keep_awake():
+            self._run(stages, limit, install)
+
+    def _run(self, stages, limit, install):
         log = self.ws.log
         if 'extract' in stages:
             ExtractionAgent(self.ws, self.db, self.engine, self.tgt).run()
