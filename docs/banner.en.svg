@@ -28,13 +28,13 @@
     <circle cx="850" cy="200" r="22" fill="#6c8ee0"/>
     <circle cx="960" cy="215" r="22" fill="#6c8ee0"/>
     <circle cx="1070" cy="195" r="22" fill="#6c8ee0"/>
-    <text x="850" y="207" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="18" fill="#fff">译</text>
-    <text x="960" y="222" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="18" fill="#fff">校</text>
-    <text x="1070" y="202" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="18" fill="#fff">包</text>
+    <text x="850" y="207" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="18" fill="#fff">TL</text>
+    <text x="960" y="222" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="18" fill="#fff">QA</text>
+    <text x="1070" y="202" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="14" fill="#fff">PKG</text>
   </g>
 
   <text x="72" y="120" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="600" fill="#9fb4e8" letter-spacing="2">MULTI AGENT</text>
-  <text x="70" y="188" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="64" font-weight="700" fill="#ffffff">游戏汉化器</text>
+  <text x="70" y="188" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="60" font-weight="700" fill="#ffffff">Game Localizer</text>
   <rect x="72" y="208" width="120" height="6" rx="3" fill="url(#accent)"/>
-  <text x="72" y="255" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="24" fill="#d7e0f5">Claude 主控调度 · 本地小模型并行翻译 · 任意语言 · 本机生成补丁</text>
+  <text x="72" y="255" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="24" fill="#d7e0f5">Claude orchestrates · local LLMs translate in parallel · patches built on your PC</text>
 </svg>

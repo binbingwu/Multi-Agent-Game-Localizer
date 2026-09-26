@@ -1,7 +1,7 @@
 """Context Agent: 分析剧情、角色和术语。
 
 - 术语表: 角色名/NPC 称呼/地名/道具等，统一译名 (glossary.json，可手工编辑)
-- 场景概要: 每个剧情场景一段中文概要，供翻译时参考
+- 场景概要: 每个剧情场景一段目标语言概要，供翻译时参考
 """
 import collections
 import re
@@ -10,20 +10,35 @@ from concurrent.futures import ThreadPoolExecutor
 from ..common import read_json, write_json
 from ..llm import extract_json
 
-TERM_SYSTEM = """你是游戏本地化术语专家。把英文游戏里的专有名词翻译成简体中文。
-规则：人名、地名用音译，采用常见、好读的中文译名用字（女性角色可用柔和的字）；
-称呼类（如 "Worried Man"）意译成自然的中文（如“烦恼的男人”）；怪物、道具、技能意译为主。
-已有术语表中的译名必须沿用。只输出 JSON 对象：{"英文": "中文", ...}，不要解释。"""
+from ..langs import get_lang
 
-SCENE_SYSTEM = """你是游戏剧情分析员。阅读一段成人奇幻RPG的剧本片段（英文），用简体中文写出：
-1) 2~3句剧情概要；2) 出场角色及其说话口吻（每人一句）。总字数不超过150字。直接输出，不要标题。"""
+TERM_SYSTEM = """You are a game localization terminology expert. Translate the proper nouns of a {src} game into {dst}.
+Rules: transliterate personal and place names using common, readable conventions of {dst};
+translate descriptive NPC titles (e.g. "Worried Man") naturally by meaning; monsters, items and skills mostly by meaning.
+Entries in the existing glossary must be reused as-is.
+Output only a JSON object {{"source term": "translation", ...}} with no explanations."""
+
+SCENE_SYSTEM = """You are a game story analyst. Read an excerpt of a game script (in {src}) and write, in {dst}:
+1) a 2-3 sentence plot summary; 2) the characters present and how each of them talks (one short line each).
+At most about 120 words or 150 CJK characters. Output the text directly, no headings."""
+
+SPEAKER_SYSTEM = """You are a game localization expert. The items below are character names or NPC titles taken from the
+game's internal sprite keys (they may be in the game's original language, e.g. Japanese). Give each one its {dst} name.
+If an item is just another spelling of a name in the reference list (e.g. a katakana transliteration of an English name),
+you must use the reference translation. Translate descriptive titles naturally by meaning.
+Output only a JSON object {{"item": "translation"}}."""
 
 
 class ContextAgent:
     name = 'Context'
 
-    def __init__(self, ws, db, llm, cfg):
+    def __init__(self, ws, db, llm, cfg, src='en', tgt='zh-CN'):
         self.ws, self.db, self.llm, self.cfg = ws, db, llm, cfg
+        self.src, self.tgt = get_lang(src), get_lang(tgt)
+        fmt = dict(src=self.src.label, dst=self.tgt.label)
+        self.term_system = TERM_SYSTEM.format(**fmt)
+        self.scene_system = SCENE_SYSTEM.format(**fmt)
+        self.speaker_system = SPEAKER_SYSTEM.format(**fmt)
 
     # ------------------------------------------------------------ glossary
     def load_glossary(self):
@@ -64,7 +79,8 @@ class ContextAgent:
     def build_glossary(self):
         g = self.load_glossary()
         names = [r['source'] for r in self.db.q("SELECT DISTINCT source FROM units WHERE kind='name'")]
-        terms = self.mine_terms()
+        # capitalisation-based mining only works for Latin-script sources
+        terms = self.mine_terms() if self.src.script == 'latin' else []
         ignore = set(read_json(self.ws.p('glossary_ignore.json'), []) or [])
         todo = [t for t in dict.fromkeys(names + terms) if t not in g and t not in ignore and len(t) < 60]
         self.ws.log(self.name, '术语表已有 %d 条，待翻译候选 %d 条' % (len(g), len(todo)))
@@ -72,10 +88,10 @@ class ContextAgent:
 
         def work(batch):
             ref = '\n'.join('%s=%s' % (k, v) for k, v in list(g.items())[:150])
-            user = '已有术语表（必须沿用）：\n%s\n\n请翻译以下条目：\n%s' % (ref, '\n'.join(batch))
+            user = 'Existing glossary (reuse these):\n%s\n\nTranslate these entries:\n%s' % (ref, '\n'.join(batch))
             for _ in range(3):
                 try:
-                    res = extract_json(self.llm.chat(TERM_SYSTEM, user, temperature=0.2, json_mode=True))
+                    res = extract_json(self.llm.chat(self.term_system, user, temperature=0.2, json_mode=True))
                     return {k: v for k, v in res.items() if k in batch and isinstance(v, str) and v.strip()}
                 except Exception:
                     continue
@@ -105,7 +121,7 @@ class ContextAgent:
                              (scene,))
             text = '\n'.join(('%s: %s' % (r['speaker'], r['source'])) if r['speaker'] else r['source'] for r in rows)
             try:
-                s = self.llm.chat(SCENE_SYSTEM, text[:6000], temperature=0.2, max_tokens=400)
+                s = self.llm.chat(self.scene_system, text[:6000], temperature=0.2, max_tokens=400)
             except Exception as e:
                 s = ''
             self.db.exec('UPDATE scenes SET summary=? WHERE scene=?', (s, scene))
@@ -121,7 +137,7 @@ class ContextAgent:
 
     # ------------------------------------------------------------ speakers
     def map_speakers(self, glossary):
-        """Speaker keys come from sprite names (often Japanese). Map every speaker to its Chinese name."""
+        """Speaker keys come from sprite names (often in the original language). Map every speaker to its target-language name."""
         path = self.ws.p('speakers.json')
         spk = read_json(path, {}) or {}
         rows = self.db.q("SELECT speaker, COUNT(*) n FROM units WHERE speaker IS NOT NULL GROUP BY speaker ORDER BY n DESC")
@@ -136,15 +152,13 @@ class ContextAgent:
                 todo.append(s)
         names = [(k, v) for k, v in glossary.items() if k[:1].isupper()]
         ref = '\n'.join('%s=%s' % kv for kv in names[:400])
-        system = ('你是游戏本地化专家。下面是日文的角色名/NPC称呼，请给出简体中文译名。'
-                  '如果它是参考表里某个英文名的日文写法（片假名音译），必须使用参考表中的中文译名；'
-                  '称呼类（如「怯える男」）意译为自然中文。只输出 JSON 对象 {"日文": "中文"}。')
         batches = [todo[i:i + 40] for i in range(0, len(todo), 40)]
 
         def work(b):
             for _ in range(3):
                 try:
-                    res = extract_json(self.llm.chat(system, '参考表（英文=中文）：\n%s\n\n待翻译：\n%s' % (ref, '\n'.join(b)),
+                    res = extract_json(self.llm.chat(self.speaker_system,
+                                                     'Reference (source = translation):\n%s\n\nTranslate:\n%s' % (ref, '\n'.join(b)),
                                                      temperature=0.1, json_mode=True))
                     return {k: v for k, v in res.items() if k in b and isinstance(v, str)}
                 except Exception:

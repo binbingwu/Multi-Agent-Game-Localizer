@@ -1,7 +1,10 @@
 """命令行入口：python -m hanhua <命令>
 
   setup                         下载/检查本地推理引擎和模型
-  init <名称> <游戏目录> [标题]  创建汉化项目（识别引擎、备份原文件、扫描）
+  init <名称> <游戏目录> [标题] [--src 源语言] [--tgt 目标语言]
+                                创建项目（识别引擎、备份原文件、扫描）；语言可写代码或名称，
+                                如 --src en --tgt zh-CN / ja / ko / es / "Polish"，默认取 config.json
+  langs                         列出内置语言配置（未列出的语言也能用，走通用规则）
   run <名称> [--limit N] [--install] [--stages extract,context,translate,build]
   status <名称>                 查看进度
   build <名称> [--install]      只打包（不调用模型）
@@ -38,7 +41,7 @@ def main(argv):
         if skip_next:
             skip_next = False
             continue
-        if a in ('--limit', '--stages'):
+        if a in ('--limit', '--stages', '--src', '--tgt'):
             skip_next = True
             continue
         if not a.startswith('--'):
@@ -57,12 +60,18 @@ def main(argv):
         llm.stop()
         return 0
 
+    if cmd == 'langs':
+        from .langs import PROFILES
+        for code, p in PROFILES.items():
+            print('%-6s %-22s %-18s %s' % (code, p['name'], p['native'], p['script']))
+        return 0
+
     from .orchestrator import Orchestrator
     if cmd == 'init':
         if len(pos) < 2:
-            print('用法: init <名称> <游戏目录> [标题]')
+            print('用法: init <名称> <游戏目录> [标题] [--src 源语言] [--tgt 目标语言]')
             return 1
-        Orchestrator.init_project(pos[0], pos[1], pos[2] if len(pos) > 2 else None)
+        Orchestrator.init_project(pos[0], pos[1], pos[2] if len(pos) > 2 else None, opt('--src'), opt('--tgt'))
         return 0
     if cmd == 'list':
         print('\n'.join(list_projects()) or '（还没有项目）')

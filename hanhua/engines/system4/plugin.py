@@ -12,6 +12,7 @@ import re
 import shutil
 import struct
 import subprocess
+import unicodedata
 import zlib
 
 from ..base import Engine
@@ -214,12 +215,13 @@ class System4Engine(Engine):
         return out, list(scenes.values())
 
     @staticmethod
-    def auto_translate(source):
-        """Rule-based translation for punctuation-only lines. Returns None if not applicable."""
-        if re.search(r'[A-Za-z0-9]', source):
+    def auto_translate(source, tgt=None):
+        """Rule-based translation for punctuation-only lines ("...", "?!"). Returns None if not applicable."""
+        if re.search(r'\w', source):
             return None
-        t = source.replace('...', '……').replace('..', '…').replace('?', '？').replace('!', '！')
-        return t
+        if tgt is not None and not getattr(tgt, 'dense', False):
+            return source  # Latin/Cyrillic/... targets keep ASCII punctuation
+        return source.replace('...', '……').replace('..', '…').replace('?', '？').replace('!', '！')
 
     # ------------------------------------------------------------------ build
     @staticmethod
@@ -383,6 +385,15 @@ def build_font(d, fonts, need_glyph, outpath, ttfs):
         if (ttf, size) not in cache:
             cache[(ttf, size)] = ImageFont.truetype(ttf, size)
         ft = cache[(ttf, size)]
+        if unicodedata.east_asian_width(ch) not in ('W', 'F'):
+            # Latin / Cyrillic / Greek ...: proportional advance, sitting on the Latin baseline
+            if (ttf, size, 'n') not in cache:
+                cache[(ttf, size, 'n')] = ImageFont.truetype(ttf, int(round(size * 1.0)))
+            small = cache[(ttf, size, 'n')]
+            w = max(2, int(round(small.getlength(ch))) + 1)
+            img = Image.new('L', (w, h), 0)
+            ImageDraw.Draw(img).text((0, h - 1 - base), ch, font=small, fill=255, anchor='ls')
+            return img
         img = Image.new('L', (adv, h), 0)
         dr = ImageDraw.Draw(img)
         by = (h - 1 - base) + int(round(adv * 0.08))

@@ -8,8 +8,8 @@ from ..common import read_json
 class ExtractionAgent:
     name = 'Extraction'
 
-    def __init__(self, ws, db, engine):
-        self.ws, self.db, self.engine = ws, db, engine
+    def __init__(self, ws, db, engine, tgt=None):
+        self.ws, self.db, self.engine, self.tgt = ws, db, engine, tgt
 
     def run(self, force=False):
         if self.db.get('extracted') and not force:
@@ -27,7 +27,7 @@ class ExtractionAgent:
             if old and old['target']:
                 target, status, origin, locked = old['target'], old['status'], old['origin'], old['locked']
             elif not u['skip']:
-                auto = self.engine.auto_translate(u['source'])
+                auto = self.engine.auto_translate(u['source'], self.tgt)
                 if auto is not None:
                     target, status, origin, locked = auto, 'qa_ok', 'auto', 1
                     n_auto += 1

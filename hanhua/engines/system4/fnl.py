@@ -3,7 +3,7 @@ def idx2char(i):
     if i<95: return i+0x20
     if i<158: return i-95+0xA1
     i-=158; f=0x81+i//188
-    if f>=0xa0: f+=31
+    if f>=0xa0: f+=0x40  # 0xA0-0xDF are single-byte codes; lead bytes resume at 0xE0
     s=0x40+i%188
     if s>=0x7f: s+=1
     return (f<<8)|s

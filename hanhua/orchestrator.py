@@ -3,6 +3,7 @@ import os
 import random
 
 from .common import Workspace, load_config, read_json
+from .langs import get_lang
 from .db import DB
 from .engines import detect_engine, get_engine
 from .llm import LocalLLM
@@ -12,15 +13,17 @@ from .agents.translation import TranslationAgents
 from .agents.qa import QAAgent
 from .agents.build import BuildAgent
 
-STRATEGY_SYSTEM = """你是游戏汉化项目的总负责人。根据给出的项目扫描结果、主要角色译名和文本样本，制定一份简明的翻译策略（简体中文），
-供译者遵守。包括：作品类型与整体文风、叙述文和对白的语气、各主要角色的说话风格、称呼习惯、拟声词原则、UI文字风格。
-这是面向成年玩家的作品：成人内容必须忠实、直白地翻译，不得要求删减、弱化或“含蓄处理”。
-提到角色时必须使用给出的中文译名。用要点列出，不超过400字。直接输出策略正文。"""
+STRATEGY_SYSTEM = """You lead a game localization project from {src} into {dst}. From the project scan, the main
+name translations and the text sample, write a concise translation strategy for the translators, in {dst}.
+Cover: genre and overall style, narration vs. dialogue tone, how each main character speaks, forms of address,
+onomatopoeia, UI text style. If the game contains adult content it must be translated faithfully and explicitly;
+never ask for it to be cut, softened or "handled tastefully". Use the given name translations.
+Bullet points, at most about 300 words. Output only the strategy."""
 
-DEFAULT_STRATEGY = """- 忠实传达原作的剧情、语气和笑点，严肃剧情处保持庄重。
-- 叙述文用流畅书面语；对白口语化，符合各角色性格。
-- 保留原文的双关、吐槽和语气，不要添油加醋；H场景用词直白自然。
-- UI与道具说明简洁明了。"""
+DEFAULT_STRATEGY = """- Convey the plot, tone and jokes faithfully; keep serious scenes serious.
+- Narration in fluent written style; dialogue colloquial and true to each character.
+- Keep puns and running gags where possible, without adding content.
+- UI and item descriptions short and consistent."""
 
 
 class Orchestrator:
@@ -31,16 +34,22 @@ class Orchestrator:
         meta = self.ws.meta
         self.engine = get_engine(meta['engine'])(self.ws, self.cfg) if meta.get('engine') else None
         self.llm = LocalLLM(self.cfg, log=self.ws.log)
+        tc = self.cfg['translation']
+        self.src = get_lang(meta.get('source_lang') or tc['source_lang'])
+        self.tgt = get_lang(meta.get('target_lang') or tc['target_lang'])
 
     # ----------------------------------------------------------------- init
     @classmethod
-    def init_project(cls, name, game_dir, title=None):
+    def init_project(cls, name, game_dir, title=None, src=None, tgt=None):
         eng = detect_engine(game_dir)
         if not eng:
             raise RuntimeError('无法识别游戏引擎：%s（目前支持：AliceSoft System 4）' % game_dir)
         ws = Workspace(name)
         meta = ws.meta
-        meta.update({'name': name, 'title': title or name, 'game_dir': os.path.abspath(game_dir), 'engine': eng.name})
+        cfg = load_config()['translation']
+        meta.update({'name': name, 'title': title or name, 'game_dir': os.path.abspath(game_dir), 'engine': eng.name,
+                     'source_lang': get_lang(src or cfg['source_lang']).code,
+                     'target_lang': get_lang(tgt or cfg['target_lang']).code})
         ws.save_meta(meta)
         o = cls(name)
         o.engine.backup(game_dir)
@@ -48,12 +57,12 @@ class Orchestrator:
         meta = o.ws.meta
         meta['scan'] = info
         o.ws.save_meta(meta)
-        o.ws.log('Orchestrator', '项目已创建：%s，引擎 %s，%s' % (name, eng.description, info))
+        o.ws.log('Orchestrator', '项目已创建：%s，引擎 %s，%s → %s，%s' % (name, eng.description, o.src.label, o.tgt.label, info))
         return o
 
     def scan_report(self):
         st = self.db.stats()
-        lines = ['项目：%s  游戏目录：%s' % (self.ws.name, self.ws.meta.get('game_dir')),
+        lines = ['项目：%s  游戏目录：%s  语言：%s → %s' % (self.ws.name, self.ws.meta.get('game_dir'), self.src.label, self.tgt.label),
                  '引擎：%s' % self.ws.meta.get('scan')]
         for kind, d in st.items():
             total = sum(d.values())
@@ -71,7 +80,8 @@ class Orchestrator:
         g = read_json(self.ws.glossary_file, None) or read_json(self.ws.p('import', 'glossary.json'), {}) or {}
         names = '\n'.join('%s=%s' % kv for kv in list(g.items())[:60])
         try:
-            s = self.llm.chat(STRATEGY_SYSTEM, '%s\n\n【主要译名】\n%s\n\n【文本样本】\n%s' % (report, names, text),
+            s = self.llm.chat(STRATEGY_SYSTEM.format(src=self.src.label, dst=self.tgt.label),
+                              '%s\n\n[Main name translations]\n%s\n\n[Text sample]\n%s' % (report, names, text),
                               temperature=0.3, max_tokens=1200)
         except Exception as e:
             self.ws.log('Orchestrator', '策略生成失败，使用默认策略：%s' % e)
@@ -86,21 +96,21 @@ class Orchestrator:
     def run(self, stages=('extract', 'context', 'translate', 'build'), limit=None, install=False):
         log = self.ws.log
         if 'extract' in stages:
-            ExtractionAgent(self.ws, self.db, self.engine).run()
+            ExtractionAgent(self.ws, self.db, self.engine, self.tgt).run()
         log('Orchestrator', '\n' + self.scan_report())
         need_llm = any(s in stages for s in ('context', 'translate'))
         try:
             if need_llm:
                 self.llm.start()
             strategy = self.make_strategy() if need_llm else ''
-            ctx = ContextAgent(self.ws, self.db, self.llm, self.cfg)
+            ctx = ContextAgent(self.ws, self.db, self.llm, self.cfg, self.src, self.tgt)
             if 'context' in stages:
                 ctx.run()
             glossary = ctx.load_glossary()
             if 'translate' in stages:
-                qa = QAAgent(self.ws, self.db, self.cfg, glossary)
+                qa = QAAgent(self.ws, self.db, self.cfg, glossary, self.src, self.tgt)
                 qa.run()  # pick up anything translated but not yet checked
-                ta = TranslationAgents(self.ws, self.db, self.llm, self.cfg, glossary, strategy)
+                ta = TranslationAgents(self.ws, self.db, self.llm, self.cfg, glossary, strategy, self.src, self.tgt)
                 for rnd in range(self.cfg['translation']['max_attempts'] + 1):
                     n = ta.run(qa=qa, limit=limit)
                     if not n or limit:

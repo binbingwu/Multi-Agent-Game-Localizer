@@ -9,31 +9,36 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from ..common import read_json
 
-SYSTEM_TMPL = """你是资深的游戏汉化译者，正在把游戏《{title}》从{src}翻译成{dst}。
-这是已正式发行的商业游戏，请忠实、完整、自然地翻译所有内容（包括面向成年玩家的情节），不删减、不弱化、不说教、不加任何解释。
+SYSTEM_TMPL = """You are a senior video game localizer translating the game "{title}" from {src} into {dst}.
+It is a commercially released game. Translate everything faithfully, completely and naturally, including content
+intended for adult players. Do not censor, soften, moralize, summarize or add explanations.
 
-【翻译策略】
+[Translation strategy]
 {strategy}
 
-【格式规则（必须遵守）】
-1. 每行输入格式为「编号|[说话人] 原文」，你只输出「编号|译文」，行数与编号必须一一对应，不要输出说话人标签。
-2. 原文的英文双引号 " 和半角括号 ( ) 原样保留在相同位置（引号包住台词，括号表示内心独白）。
-3. 原文以一个空格开头的行（续行），译文开头也保留一个半角空格。
-4. %s %d $ 等格式符号、⏎（换行）原样保留。
-5. 使用中文全角标点：，。！？：；……（省略号用……），破折号用――。
-6. 人名、地名等专有名词严格使用术语表中的译名。
-7. 拟声词、呻吟、语气词要译成自然的中文拟声（如 啊、嗯、呜、哈啊）。"""
+[Output format - mandatory]
+1. Each input line looks like "N|[speaker] source text". Output only "N|translation", one line per number, same count,
+   without the speaker tag.
+2. Keep the source's ASCII double quotes " and ASCII parentheses ( ) in the same positions
+   (quotes wrap spoken lines, parentheses mark inner thoughts).
+3. If a source line starts with one space (a continuation line), the translation must also start with one ASCII space.
+4. Keep format codes such as %s %d $ and the line-break mark ⏎ exactly as they are.
+5. Use the glossary translations for names and terms exactly.
+{lang_rules}
+Write the translations in {dst} only."""
 
 
 class TranslationAgents:
     name = 'Translation'
 
-    def __init__(self, ws, db, llm, cfg, glossary, strategy):
+    def __init__(self, ws, db, llm, cfg, glossary, strategy, src, tgt):
         self.ws, self.db, self.llm, self.cfg = ws, db, llm, cfg
         self.glossary = glossary
         self.tcfg = cfg['translation']
-        self.system = SYSTEM_TMPL.format(title=ws.meta.get('title', ws.name), src=self.tcfg['source_lang'],
-                                         dst=self.tcfg['target_lang'], strategy=strategy.strip() or '（无）')
+        self.src, self.tgt = src, tgt
+        rules = ''.join('%d. %s\n' % (i + 6, r) for i, r in enumerate(tgt.rules))
+        self.system = SYSTEM_TMPL.format(title=ws.meta.get('title', ws.name), src=src.label, dst=tgt.label,
+                                         strategy=strategy.strip() or '(none)', lang_rules=rules)
         # longest keys first so "Riche Eden" beats "Riche"
         self.gkeys = sorted(glossary.keys(), key=len, reverse=True)
         self.speakers = read_json(ws.p('speakers.json'), {}) or {}
@@ -77,28 +82,29 @@ class TranslationAgents:
         parts = []
         sc = self.db.one('SELECT summary FROM scenes WHERE scene=?', (first['scene'],))
         if sc and sc['summary']:
-            parts.append('【场景概要】\n' + sc['summary'])
+            parts.append('[Scene summary]\n' + sc['summary'])
         text = ' '.join(r['source'] for r in batch)
         prev = self.db.q("SELECT speaker, source, target FROM units WHERE scene=? AND seq<? AND target IS NOT NULL "
                          "AND kind='message' ORDER BY seq DESC LIMIT ?", (first['scene'], first['seq'], self.tcfg['context_lines']))
         text += ' ' + ' '.join(p['source'] for p in prev)
         g = self.glossary_for(text)
         if g:
-            parts.append('【术语表】\n' + '\n'.join('%s = %s' % kv for kv in g.items()))
+            parts.append('[Glossary]\n' + '\n'.join('%s = %s' % kv for kv in g.items()))
         if prev:
-            parts.append('【前文（仅供参考，不要翻译）】\n' + '\n'.join(
+            parts.append('[Previous lines - context only, do not translate]\n' + '\n'.join(
                 '%s%s\n=> %s' % ('[%s] ' % self.spk(p['speaker']) if p['speaker'] else '', p['source'], p['target'])
                 for p in reversed(prev)))
         notes = [(i + 1, r['qa_notes']) for i, r in enumerate(batch) if r['qa_notes']]
         if notes:
-            parts.append('【上次译文的问题，这次必须改正】\n' + '\n'.join('%d: %s' % n for n in notes))
+            parts.append('[Problems found in your previous translation of these lines - fix them]\n' +
+                         '\n'.join('%d: %s' % n for n in notes))
         lines = []
         for i, r in enumerate(batch):
             spk = '[%s] ' % self.spk(r['speaker']) if r['speaker'] else ''
             if r['kind'] == 'string':
-                spk = '[界面文字] '
+                spk = '[UI text] '
             lines.append('%d|%s%s' % (i + 1, spk, r['source'].replace('\n', '⏎')))
-        parts.append('【待翻译】（共 %d 行）\n%s' % (len(batch), '\n'.join(lines)))
+        parts.append('[Translate] (%d lines)\n%s' % (len(batch), '\n'.join(lines)))
         return '\n\n'.join(parts)
 
     @staticmethod
@@ -113,13 +119,14 @@ class TranslationAgents:
         return out
 
     @staticmethod
-    def fix_format(src, dst):
+    def fix_format(src, dst, tgt=None):
         dst = dst.replace('⏎', '\n')
         # model often drops the leading continuation space or turns quotes into curly ones
         dst = dst.replace('“', '"').replace('”', '"').replace('（', '(').replace('）', ')')
         dst = dst.replace('「', '"').replace('」', '"').replace('『', '"').replace('』', '"')
         dst = re.sub(r'^\s*\[[^\]]{1,30}\]\s*', '', dst)
-        dst = dst.replace('...', '……').replace('—', '―')
+        if tgt is None or tgt.ellipsis == '……':
+            dst = dst.replace('...', '……').replace('—', '―')
         # copy the source's leading/trailing whitespace (continuation space, trailing \n, padding) exactly
         core = dst.strip(' \n\t　')
         head = src[:len(src) - len(src.lstrip(' \n\t'))]
@@ -137,11 +144,11 @@ class TranslationAgents:
         rows = []
         for i, r in enumerate(batch):
             if i + 1 in res:
-                rows.append((self.fix_format(r['source'], res[i + 1]), r['key']))
+                rows.append((self.fix_format(r['source'], res[i + 1], self.tgt), r['key']))
         self.db.execmany("UPDATE units SET target=?, status='translated', origin='llm', attempts=attempts+1 WHERE key=?", rows)
         missing = [r['key'] for i, r in enumerate(batch) if i + 1 not in res]
         if missing:
-            self.db.execmany("UPDATE units SET attempts=attempts+1, qa_notes='上次漏译了这一行' WHERE key=?",
+            self.db.execmany("UPDATE units SET attempts=attempts+1, qa_notes='line was missing from your output' WHERE key=?",
                              [(k,) for k in missing])
         return [r['key'] for r in batch]
 

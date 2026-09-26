@@ -1,187 +1,214 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Multi Agent 游戏汉化器" width="100%">
+  <img src="docs/banner.en.svg" alt="Multi-Agent Game Localizer" width="100%">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/主控-Claude-d97757?style=flat-square" alt="Claude">
-  <img src="https://img.shields.io/badge/子Agent-Qwen3.5--9B%20本地-6c5ce7?style=flat-square" alt="Qwen">
-  <img src="https://img.shields.io/badge/推理-llama.cpp%20CUDA-76b900?style=flat-square" alt="llama.cpp">
-  <img src="https://img.shields.io/badge/平台-Windows%2010%2F11-0078d4?style=flat-square" alt="Windows">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776ab?style=flat-square" alt="Python">
+  <b>English</b> · <a href="README.zh-CN.md">简体中文</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Orchestrator-Claude-d97757?style=flat-square" alt="Claude">
+  <img src="https://img.shields.io/badge/Sub--agents-Qwen3.5--9B%20local-6c5ce7?style=flat-square" alt="Qwen">
+  <img src="https://img.shields.io/badge/Inference-llama.cpp%20CUDA-76b900?style=flat-square" alt="llama.cpp">
+  <img src="https://img.shields.io/badge/Languages-any%20the%20LLM%20knows-ff7aa8?style=flat-square" alt="Languages">
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-0078d4?style=flat-square" alt="Windows">
   <img src="https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square" alt="GPL-3.0">
 </p>
 
 <p align="center">
-  <b>Claude 负责动脑，本地小模型负责干活。</b><br>
-  Claude 看懂游戏、制定策略、编写引擎插件、把关质量；本地模型把几万条台词批量翻完。<br>
-  补丁在你自己的电脑上、用你自己的正版游戏文件生成，不用再下载来路不明的汉化包。
+  <b>Claude does the thinking, local models do the heavy lifting.</b><br>
+  Claude understands the game, sets the strategy, writes engine plugins and reviews quality;<br>
+  a local LLM translates tens of thousands of lines in parallel, into any language it knows.<br>
+  The patch is built on your own PC from your own game files, so there is no need to download a patch from an unknown source.
 </p>
 
 <p align="center">
-  <a href="#-解决了哪些痛点">痛点</a> ·
-  <a href="#-架构">架构</a> ·
-  <a href="#-运行配置">配置</a> ·
-  <a href="#-快速开始">快速开始</a> ·
-  <a href="#-怎么给-claude-写提示词">提示词</a> ·
-  <a href="#-接入新引擎">接入新引擎</a>
+  <a href="#-pain-points-it-solves">Why</a> ·
+  <a href="#-architecture">Architecture</a> ·
+  <a href="#-languages">Languages</a> ·
+  <a href="#-requirements">Requirements</a> ·
+  <a href="#-quick-start">Quick start</a> ·
+  <a href="#-how-to-prompt-claude">Prompting</a> ·
+  <a href="#-adding-a-new-engine">New engines</a>
 </p>
 
 ---
 
-## 📊 实测成绩
+## 📊 Real-world result
 
-以 AliceSoft《Evenicle》Steam 英文版 v1.04 为例，硬件是 RTX 4070 12GB：
+AliceSoft's *Evenicle* (Steam English release, v1.04) translated into Simplified Chinese on an RTX 4070 12GB:
 
 <table>
   <tr>
-    <td align="center"><h3>65,474</h3>条剧情台词</td>
-    <td align="center"><h3>4,281</h3>条界面文字</td>
-    <td align="center"><h3>≈ 9 条/秒</h3>8 路并行翻译</td>
-    <td align="center"><h3>≈ 2 小时</h3>全文翻完</td>
-    <td align="center"><h3>≈ 95%</h3>质检一次通过</td>
+    <td align="center"><h3>65,474</h3>story lines</td>
+    <td align="center"><h3>4,281</h3>UI strings</td>
+    <td align="center"><h3>≈ 9 lines/s</h3>8 parallel slots</td>
+    <td align="center"><h3>≈ 2 hours</h3>whole script</td>
+    <td align="center"><h3>≈ 95%</h3>pass QA first time</td>
   </tr>
 </table>
 
-中文在游戏内显示正常，长句自动换行正常，人名框、心理独白括号、多行台词排版都与英文版一致。
+The translated text renders in-game, long lines wrap correctly, and the name box, inner-monologue brackets and multi-line layout match the original release.
 
 ---
 
-## 🎯 解决了哪些痛点
+## 🎯 Pain points it solves
 
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h4>🗣️ 机翻质量差</h4>
-      逐句丢给翻译软件，没有上下文，人名前后不一，漏译错译多。<br><br>
-      <b>这里：</b>按场景分批翻译。每批都带上翻译策略、场景剧情概要、说话人、术语表和前几句译文。质检不合格的自动退回重译。
+      <h4>🗣️ Machine translation is bad</h4>
+      Pasting lines one by one into a translator gives no context, inconsistent names, and plenty of omissions.<br><br>
+      <b>Here:</b> lines are translated scene by scene. Every batch carries the translation strategy, a scene summary, the speaker, the glossary and the previous lines. Lines that fail QA are sent back automatically.
     </td>
     <td width="50%" valign="top">
-      <h4>🛡️ 汉化包有没有病毒</h4>
-      从论坛、网盘下载别人打包的 exe 或补丁，没法验证里面有什么。<br><br>
-      <b>这里：</b>代码全部开源。补丁由你本机用你自己的游戏文件现场生成。原文件自动备份，一条命令就能恢复原版。
+      <h4>🛡️ Is that fan patch safe?</h4>
+      Patches and executables from forums and file hosts cannot be verified.<br><br>
+      <b>Here:</b> the code is open source, and the patch is generated on your machine from your own game files. Originals are backed up automatically, and one command restores them.
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <h4>⏳ 只能等汉化组</h4>
-      冷门游戏、新版本没人做；Steam 版和其他版本文件不同，现成汉化包用不了。<br><br>
-      <b>这里：</b>自己动手，几小时出结果。游戏更新后重新提取，只翻新增部分。
+      <h4>⏳ Waiting for a translation group</h4>
+      Niche titles and new versions get no translation, and patches made for another release do not fit yours.<br><br>
+      <b>Here:</b> do it yourself in a few hours. After a game update, extract again and translate only what changed.
     </td>
     <td valign="top">
-      <h4>🧩 换一个游戏就不会弄</h4>
-      每种引擎的封包格式都不一样。<br><br>
-      <b>这里：</b>引擎插件架构。遇到新引擎由 Claude 分析文件格式、编写插件，上下文、翻译、质检、打包流程全部复用。
+      <h4>🌍 Only one language pair</h4>
+      Most tools and fan patches cover only one direction, such as Japanese to English.<br><br>
+      <b>Here:</b> source and target are per-project settings. Any language the model knows works, and common languages come with tuned rules.
     </td>
   </tr>
   <tr>
     <td valign="top">
-      <h4>💸 全用大模型太贵</h4>
-      几万条台词全走云端 API，费用和额度都扛不住。<br><br>
-      <b>这里：</b>繁重的逐句翻译交给本地模型，免费又离线。Claude 只做需要判断力的主控工作。
+      <h4>🧩 Every engine is different</h4>
+      Every engine packs its text differently.<br><br>
+      <b>Here:</b> engines are plugins. For a new engine, Claude analyses the file format and writes a plugin. Context, translation, QA and packaging are reused unchanged.
     </td>
     <td valign="top">
-      <h4>🔤 中文显示不出来</h4>
-      很多老引擎只认日文编码，字库里没有中文。<br><br>
-      <b>这里：</b>引擎插件负责编码映射和字库生成。System 4 插件会把中文字映射到日文汉字编码位，再用系统中文字体画进点阵字库。
+      <h4>💸 Cloud LLMs for every line cost too much</h4>
+      Sending tens of thousands of lines to a cloud API eats money and quota.<br><br>
+      <b>Here:</b> the bulk translation runs on a free, offline local model. Claude only does the work that needs judgement.
     </td>
   </tr>
 </table>
 
 > [!NOTE]
-> **关于“通用”：** 架构对所有游戏通用，但每种引擎需要一个插件。目前内置并实测过的是 **AliceSoft System 4**（`.ain` + `.fnl`，例如 Evenicle、Rance 系列）。
-> Ren'Py、RPG Maker、Kirikiri、Unity 等引擎，需要让 Claude 按[接入新引擎](#-接入新引擎)的方式先写插件，写好后同样一键运行。
+> **About "works with every game":** the architecture is engine-agnostic, but each engine needs a plugin. The built-in, tested plugin is **AliceSoft System 4** (`.ain` + `.fnl`, e.g. Evenicle and the Rance series).
+> For Ren'Py, RPG Maker, Kirikiri, Unity and others, ask Claude to write a plugin first (see [Adding a new engine](#-adding-a-new-engine)). After that it runs the same way.
 
 ---
 
-## 🏗️ 架构
+## 🏗️ Architecture
 
 <p align="center">
-  <img src="docs/architecture.svg" alt="架构图" width="820">
+  <img src="docs/architecture.en.svg" alt="Architecture" width="820">
 </p>
 
-### 谁负责什么
+### Who does what
 
-| 角色 | 由谁担任 | 职责 |
+| Role | Played by | Responsibilities |
 |:--|:--|:--|
-| 🧠 **Orchestrator 主控** | **Claude**（Claude Code） | 识别引擎、编写插件；审改翻译策略和术语表；试翻抽查；发现系统性问题就改规则后续跑；处理人工复核条目；安装补丁并启动游戏截图验证 |
-| ⚙️ 流程调度 | `orchestrator.py` | 按阶段调度各 Agent，状态存在 SQLite，随时中断随时续跑 |
-| 📦 Extraction Agent | 引擎插件 | 解包、提取文本、识别说话人、跳过不需翻译的内容、导入已有人工译文 |
-| 📚 Context Agent | 本地小模型 | 挖掘专有名词建术语表；把说话人统一成中文名；为每个场景写剧情概要 |
-| ✍️ Translation Agents | 本地小模型 × N 路 | 按场景分批翻译，提示词里带策略、概要、术语和前文 |
-| 🔍 QA Agent | 规则 | 查漏译、残留英文、拒答废话、引号和续行格式、`%s` `%d` `$` 换行、长度异常、术语一致性 |
-| 🚀 Build & Validation | 引擎插件 | 写回资源、生成字库、逐条回读校验、检查缺字、安装卸载、冒烟测试截图 |
+| 🧠 **Orchestrator** | **Claude** (Claude Code) | Identifies the engine and writes plugins; reviews the strategy and glossary; spot-checks trial batches; fixes systematic problems in rules or prompts; handles lines flagged for review; installs the patch and verifies it with in-game screenshots |
+| ⚙️ Pipeline scheduler | `orchestrator.py` | Runs the agents stage by stage. State lives in SQLite, so a run can stop and resume at any time |
+| 📦 Extraction Agent | Engine plugin | Unpacks, extracts text, detects speakers, skips what needs no translation, imports existing human translations |
+| 📚 Context Agent | Local LLM | Mines proper nouns into a glossary, maps speakers to target-language names, writes a summary for every scene |
+| ✍️ Translation Agents | Local LLM × N | Translate scene by scene with strategy, summary, glossary and previous lines in the prompt |
+| 🔍 QA Agent | Rules | Checks for omissions, untranslated words, refusals, quote and continuation structure, `%s` `%d` `$` and line breaks, length outliers and glossary consistency |
+| 🚀 Build & Validation | Engine plugin | Writes text back, generates font glyphs, re-reads every line to verify it, checks for missing glyphs, installs and uninstalls, and takes smoke-test screenshots |
 
-### 一条台词的旅程
+### The journey of one line
 
 ```mermaid
 flowchart LR
-    A[🎮 游戏资源文件] -->|Extraction| B[(state.db<br/>全部条目)]
-    B -->|Context| C[术语表<br/>说话人<br/>场景概要]
-    B --> D{Translation<br/>×8 并行}
+    A[🎮 Game resources] -->|Extraction| B[(state.db<br/>all lines)]
+    B -->|Context| C[Glossary<br/>speakers<br/>scene summaries]
+    B --> D{Translation<br/>×8 parallel}
     C --> D
-    D --> E{QA 质检}
-    E -->|✅ 通过| F[打包]
-    E -->|❌ 不合格<br/>带问题说明| D
-    E -->|多次失败| G[人工复核<br/>Claude 或你]
+    D --> E{QA}
+    E -->|✅ pass| F[Package]
+    E -->|❌ fail<br/>with reason| D
+    E -->|failed repeatedly| G[Human review<br/>Claude or you]
     G --> F
-    F -->|Build & Validation| H[🀄 中文补丁]
+    F -->|Build & Validation| H[🌐 Localization patch]
 ```
 
-### Claude 和本地模型怎么配合
+### How Claude and the local model work together
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as 你
-    participant C as Claude 主控
-    participant H as 汉化器 CLI
-    participant L as 本地模型 (Qwen)
-    U->>C: 游戏目录、版本、要求
-    C->>H: init：识别引擎、备份原文件
-    Note over C,H: 引擎不支持时，Claude 先写插件
-    C->>H: run --limit 5：试翻几批
-    H->>L: 术语 / 概要 / 翻译请求
-    L-->>H: 译文
-    H-->>C: 译文 + 质检结果
-    C->>C: 抽查原文对照，改策略、术语、规则
-    C->>H: run：后台全量翻译
-    H->>L: 数千个批次，8 路并行
-    C->>H: build --install，test 截图
-    C-->>U: 结果、截图、已知问题
+    actor U as You
+    participant C as Claude (Orchestrator)
+    participant H as Localizer CLI
+    participant L as Local LLM (Qwen)
+    U->>C: Game folder, version, target language, requirements
+    C->>H: init: detect engine, back up originals
+    Note over C,H: For an unsupported engine, Claude writes a plugin first
+    C->>H: run --limit 5: trial batches
+    H->>L: Glossary / summaries / translation requests
+    L-->>H: Translations
+    H-->>C: Translations + QA results
+    C->>C: Compare with the source, adjust strategy, glossary, rules
+    C->>H: run: full translation in the background
+    H->>L: Thousands of batches, 8 in parallel
+    C->>H: build --install, test screenshot
+    C-->>U: Results, screenshots, known issues
 ```
 
 ---
 
-## 💻 运行配置
+## 🌍 Languages
 
-| | 最低 | 推荐 |
+Source and target language are set per project. You can use a code or a name:
+
+```bat
+venv\Scripts\python -m hanhua init MyGame "D:\Games\MyGame" "My Game" --src ja --tgt en
+venv\Scripts\python -m hanhua init MyGame "D:\Games\MyGame" "My Game" --src en --tgt "Brazilian Portuguese"
+```
+
+| | Languages |
+|:--|:--|
+| **Tuned profiles** | `zh-CN` Simplified Chinese · `zh-TW` Traditional Chinese · `ja` Japanese · `ko` Korean · `en` English · `es` Spanish · `fr` French · `de` German · `pt` Portuguese · `it` Italian · `ru` Russian · `uk` Ukrainian · `pl` Polish · `vi` Vietnamese · `id` Indonesian · `tr` Turkish |
+| **Anything else** | Any language name the model understands. It uses a generic profile with the language's own punctuation, and script-specific QA checks are skipped |
+
+A profile defines punctuation rules, a plausible length ratio for QA, and whether leftover source-language words should be flagged. Run `python -m hanhua langs` to list them, or add your own in `hanhua/langs.py`.
+
+> [!IMPORTANT]
+> What the game can display depends on the engine. The System 4 plugin draws any character that is laid out one glyph at a time: CJK, Hangul, Latin with accents, Cyrillic and Greek. Scripts that need shaping, such as Arabic, Hebrew or Thai, are not supported by that old engine. Translation quality also depends on how well the chosen model knows the language, so try a few batches first.
+
+---
+
+## 💻 Requirements
+
+| | Minimum | Recommended |
 |:--|:--|:--|
-| **系统** | Windows 10 64 位 | Windows 11 64 位 |
-| **显卡** | NVIDIA 8GB 显存（并行改为 2~4，或换 Q4_K_M 量化） | **NVIDIA 12GB 显存**（默认配置 8 路并行约占 9.4GB） |
-| **内存** | 16GB | 32GB |
-| **硬盘** | 15GB 可用空间 | SSD |
+| **OS** | Windows 10 64-bit | Windows 11 64-bit |
+| **GPU** | NVIDIA 8GB VRAM (set parallel slots to 2–4, or use a Q4_K_M quant) | **NVIDIA 12GB VRAM** (default: 8 parallel slots use about 9.4GB) |
+| **RAM** | 16GB | 32GB |
+| **Disk** | 15GB free | SSD |
 | **Python** | 3.10 | 3.12 |
-| **主控** | [Claude Code](https://claude.com/claude-code)，需要 Claude 订阅或 API | 同左 |
-| **网络** | 仅首次 `setup` 下载时需要 | 翻译全程离线 |
+| **Orchestrator** | [Claude Code](https://claude.com/claude-code) with a Claude subscription or API key | Same |
+| **Network** | Only for the first `setup` download | Translation runs fully offline |
 
 <details>
-<summary><b>setup 会下载哪些东西</b></summary>
+<summary><b>What <code>setup</code> downloads</b></summary>
 
-| 组件 | 来源 | 位置 | 大小 |
+| Component | Source | Location | Size |
 |:--|:--|:--|:--|
-| 推理引擎 | [llama.cpp](https://github.com/ggml-org/llama.cpp) Windows CUDA 12.4 版 | `runtime/llama/` | 约 0.7GB |
-| 翻译模型 | [Qwen3.5-9B GGUF Q6_K](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF)（Apache-2.0），失败时自动改用 hf-mirror 镜像 | `models/` | 约 7.1GB |
-| System 4 工具 | [alice-tools](https://github.com/nunuhara/alice-tools)（GPL） | `tools/alice-tools/` | 约 20MB |
+| Inference engine | [llama.cpp](https://github.com/ggml-org/llama.cpp) Windows CUDA 12.4 build | `runtime/llama/` | about 0.7GB |
+| Model | [Qwen3.5-9B GGUF Q6_K](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF) (Apache-2.0), with an hf-mirror fallback | `models/` | about 7.1GB |
+| System 4 tools | [alice-tools](https://github.com/nunuhara/alice-tools) (GPL) | `tools/alice-tools/` | about 20MB |
 
-没有 NVIDIA 显卡也能运行：换成 llama.cpp 的 CPU 版，并把 `config.json` 里的 `gpu_layers` 设为 0，但速度会慢很多倍。
+Without an NVIDIA GPU it still runs: use the llama.cpp CPU build and set `gpu_layers` to 0 in `config.json`. It will be many times slower. To use another model, put the GGUF file in `models/` and change `llm.model`.
 
 </details>
 
 ---
 
-## 🚀 快速开始
+## 🚀 Quick start
 
-**1. 安装**
+**1. Install**
 
 ```bat
 git clone https://github.com/binbingwu/Multi-Agent-Game-Localizer.git
@@ -191,136 +218,139 @@ venv\Scripts\pip install pillow
 venv\Scripts\python -m hanhua setup
 ```
 
-**2. 交给 Claude**
+**2. Hand it to Claude**
 
-在这个目录里打开 Claude Code，把[下一节](#-怎么给-claude-写提示词)的提示词发给它。
+Open Claude Code in this folder and send it the prompt from [the next section](#-how-to-prompt-claude).
 
-**3. 或者自己用菜单**
+**3. Or run it yourself**
 
-对于已经支持的引擎，也可以不用 Claude，直接双击 `汉化器.bat` 按菜单操作。
+For engines that are already supported you can skip Claude and use the commands below, or double-click `汉化器.bat` for a menu. The menu and log messages are in Chinese.
 
 <details>
-<summary><b>全部命令</b></summary>
+<summary><b>All commands</b></summary>
 
 ```bat
-venv\Scripts\python -m hanhua init <项目名> "<游戏目录>" "<游戏标题>"   :: 建项目：识别引擎、备份原文件
-venv\Scripts\python -m hanhua run <项目名> --limit 5                   :: 试翻 5 批，先看质量
-venv\Scripts\python -m hanhua run <项目名>                             :: 全流程，可中断续跑
-venv\Scripts\python -m hanhua status <项目名>                          :: 进度
-venv\Scripts\python -m hanhua build <项目名> --install                 :: 打包并安装（先关游戏）
-venv\Scripts\python -m hanhua test <项目名>                            :: 启动游戏截图后关闭
-venv\Scripts\python -m hanhua export <项目名>                          :: 导出需复核条目 review.tsv
-venv\Scripts\python -m hanhua import <项目名> review.tsv               :: 导入人工修改（锁定）
-venv\Scripts\python -m hanhua uninstall <项目名>                       :: 恢复原版
+venv\Scripts\python -m hanhua init <project> "<game dir>" "<title>" --src en --tgt ja   :: create project, back up originals
+venv\Scripts\python -m hanhua run <project> --limit 5          :: trial: 5 batches only
+venv\Scripts\python -m hanhua run <project>                    :: full pipeline, resumable
+venv\Scripts\python -m hanhua status <project>                 :: progress
+venv\Scripts\python -m hanhua build <project> --install        :: package and install (close the game first)
+venv\Scripts\python -m hanhua test <project>                   :: launch the game, screenshot, close
+venv\Scripts\python -m hanhua export <project>                 :: export lines needing review to review.tsv
+venv\Scripts\python -m hanhua import <project> review.tsv      :: import your fixes (locked)
+venv\Scripts\python -m hanhua uninstall <project>              :: restore the original files
+venv\Scripts\python -m hanhua langs                            :: list language profiles
 ```
 
-`run` 可以用 `--stages extract,context,translate,build` 只跑部分阶段。
+`run` accepts `--stages extract,context,translate,build` to run only some stages.
 
 </details>
 
 ---
 
-## 💬 怎么给 Claude 写提示词
+## 💬 How to prompt Claude
 
-Claude 打开这个目录时会先读 [`CLAUDE.md`](CLAUDE.md)，里面写明了它作为主控的职责、流程和禁止事项。你只需要说清楚**游戏在哪、要什么、有什么限制**。
+When Claude opens this folder it reads [`CLAUDE.md`](CLAUDE.md), which describes its role as orchestrator, the workflow and the rules. You only need to say **where the game is, what you want, and what must not be touched**.
 
-### 开场模板
+### Starter prompt
 
 ```text
-你是这个汉化器的主控（Orchestrator），请按 CLAUDE.md 的流程工作。
-游戏：<游戏名>，目录 D:\Games\XXX，Steam 英文版 v1.2（原版是日文，但我只有英文版）。
-要求：只汉化文字（不改图片和语音），简体中文，成人内容照实翻译。
-先识别引擎并试翻一小批给我看质量，没问题再全量跑。
-我的电脑是 RTX 4070 12GB。游戏可能开着，安装补丁前先确认游戏已关闭，不要动我的存档。
+You are the orchestrator of this localizer; follow CLAUDE.md.
+Game: <name>, folder D:\Games\XXX, Steam English release v1.2 (originally Japanese, I only own the English version).
+Translate into: German. Text only (no images or voice). Adult content translated faithfully.
+Detect the engine, translate a small trial batch and show me the quality before running everything.
+My PC has an RTX 4070 12GB. The game may be open: make sure it is closed before installing, and don't touch my saves.
 ```
 
-### 六个要点
+### Six tips
 
-| | 要点 | 为什么 |
+| | Tip | Why |
 |:--:|:--|:--|
-| 1️⃣ | **说清楚游戏目录和版本** | Steam 版和其他版本文件经常不同，版本号决定现成资料能不能用 |
-| 2️⃣ | **说清楚范围** | 只翻文字还是连图片一起改；界面翻不翻；人名音译还是意译 |
-| 3️⃣ | **给出风格偏好** | 例如“对白口语化”“人名沿用某汉化组的译名”。这些会写进 `strategy.md` 和 `glossary.json`，对所有子 Agent 生效 |
-| 4️⃣ | **要求先试翻再全量** | 用 `run --limit` 试几批、看原文对照，确认后再跑，避免跑几个小时才发现方向错了 |
-| 5️⃣ | **说明哪些东西不能动** | 例如“游戏开着别覆盖文件”“先备份存档” |
-| 6️⃣ | **引擎不支持就直说** | “请为这个引擎写插件”，Claude 会按接口写好并在游戏里验证 |
+| 1️⃣ | **Give the folder and version** | Steam and other releases often differ; the version tells Claude whether existing resources apply |
+| 2️⃣ | **Name the source and target language** | Claude sets `--src` / `--tgt`; say which variant you want, e.g. Brazilian vs. European Portuguese |
+| 3️⃣ | **State the scope and style** | Text only or images too, UI or not, and preferences like "casual dialogue" or "use these established names: A → X". They go into `strategy.md` and `glossary.json` and apply to every sub-agent |
+| 4️⃣ | **Ask for a trial first** | `run --limit` a few batches and review them side by side before a multi-hour run |
+| 5️⃣ | **Say what must not be touched** | "Don't overwrite files while the game is running", "back up my saves first" |
+| 6️⃣ | **Unsupported engine? Say so** | "Please write a plugin for this engine." Claude implements the interface and verifies it in-game |
 
 <details>
-<summary><b>过程中常用的追问</b></summary>
+<summary><b>Useful follow-ups</b></summary>
 
 ```text
-抽 30 条刚翻的对话给我看原文对照，挑出翻得不好的并说明原因。
-把这些译名改掉：X → 甲，Y → 乙，已经翻过的相关句子退回重译。
-QA 退回最多的是哪类问题？是模型的问题还是规则太严？
-打包安装后启动游戏截图给我看，检查换行和字体。
+Show me 30 freshly translated lines next to the source and point out the weak ones.
+Change these names: X → A, Y → B, and send the affected lines back for retranslation.
+What is the most common QA failure? Is it the model or are the rules too strict?
+Build, install, launch the game and show me a screenshot to check wrapping and the font.
 ```
 
 </details>
 
 ---
 
-## 📁 项目工作区
+## 📁 Project workspace
 
-每个游戏一个工作区 `projects/<项目名>/`：
+Each game gets `projects/<project>/`:
 
-| 文件 | 说明 | 可手改 |
+| File | Purpose | Editable |
 |:--|:--|:--:|
-| `strategy.md` | 翻译策略，每个翻译请求都会带上 | ✅ |
-| `glossary.json` | 术语表（原文 → 中文） | ✅ |
-| `glossary_ignore.json` | 不要当成术语的词 | ✅ |
-| `speakers.json` | 说话人 → 中文名 | ✅ |
-| `import/*.json` | 预置人工译文 `{条目key: 译文}`，导入后锁定 | ✅ |
-| `state.db` | 全部条目、译文、状态 | 用 export / import |
-| `original/` | 原始游戏文件备份 | ❌ |
-| `build/` · `logs/` | 生成的补丁、日志、截图 | — |
+| `project.json` | Game folder, engine, `source_lang` / `target_lang` | ✅ |
+| `strategy.md` | Translation strategy, sent with every request | ✅ |
+| `glossary.json` | Glossary (source → target) | ✅ |
+| `glossary_ignore.json` | Words that must not become glossary terms | ✅ |
+| `speakers.json` | Speaker → target-language name | ✅ |
+| `import/*.json` | Existing human translations `{key: text}`, locked after import | ✅ |
+| `state.db` | All lines, translations and status | via export / import |
+| `original/` | Backup of the original game files | ❌ |
+| `build/` · `logs/` | Generated patch, logs, screenshots | — |
 
-**条目状态：** `new` → `translated` → `qa_ok`。不合格为 `qa_fail`，带着问题说明退回重译。超过重试次数为 `review`，仍会打包，建议导出后人工修改。锁定的条目不会被模型覆盖。
+**Line status:** `new` → `translated` → `qa_ok`. Failures become `qa_fail` and go back with the reason. After too many retries they become `review`; they are still packaged, but you should export and fix them. Locked lines are never overwritten by the model.
 
 ---
 
-## 🔌 接入新引擎
+## 🔌 Adding a new engine
 
-在 `hanhua/engines/<引擎名>/plugin.py` 实现 [`base.py`](hanhua/engines/base.py) 的接口，并在 `hanhua/engines/__init__.py` 注册：
+Implement the interface in [`base.py`](hanhua/engines/base.py) in `hanhua/engines/<engine>/plugin.py` and register it in `hanhua/engines/__init__.py`:
 
-| 方法 | 作用 |
+| Method | Purpose |
 |:--|:--|
-| `detect(game_dir)` | 判断目录是不是这个引擎的游戏 |
-| `backup` · `scan` | 备份原文件、汇报文件信息 |
-| `extract()` | 返回条目：`key` `kind` `seq` `scene` `speaker` `source` `skip` |
-| `build(translations)` | 写回译文，处理中文编码和字库，输出到 `build/` |
-| `validate(translations)` | 回读校验、字库缺字检查 |
-| `install` · `uninstall` · `game_running` | 安装、恢复、检测游戏是否在运行 |
+| `detect(game_dir)` | Is this folder a game of this engine? |
+| `backup` · `scan` | Back up originals and report file info |
+| `extract()` | Return lines: `key` `kind` `seq` `scene` `speaker` `source` `skip` |
+| `build(translations)` | Write translations back, handle encoding and fonts, output to `build/` |
+| `validate(translations)` | Read back and verify, check for missing glyphs |
+| `install` · `uninstall` · `game_running` | Install, restore, detect a running game |
 
-上下文、翻译、质检、打包流程都不需要改。最省事的做法是在 Claude Code 里说：
+Context, translation, QA and packaging need no changes. The easiest way is to tell Claude:
 
 ```text
-这个游戏是 XX 引擎，请参考 System 4 插件为它写一个插件，
-并用一小段台词在游戏里验证中文能显示。
+This game uses the XX engine. Write a plugin for it modelled on the System 4 plugin,
+and verify in-game with a few translated lines that the text displays.
 ```
 
 ---
 
-## 🗂️ 目录结构
+## 🗂️ Layout
 
 ```text
-汉化器.bat              一键菜单
-config.json            模型、并行数、批大小、质检阈值
-CLAUDE.md              给 Claude（主控）的工作说明
-docs/                  README 用图
+汉化器.bat              menu launcher (Chinese UI)
+config.json            model, parallel slots, batch size, default languages, QA thresholds
+CLAUDE.md              instructions for Claude as orchestrator
+docs/                  README images
 hanhua/
-├─ orchestrator.py     流程调度、翻译策略
-├─ llm.py              本地模型服务（llama.cpp，OpenAI 兼容接口）
+├─ orchestrator.py     pipeline scheduling, translation strategy
+├─ langs.py            language profiles
+├─ llm.py              local model server (llama.cpp, OpenAI-compatible API)
 ├─ agents/             extraction · context · translation · qa · build
-├─ engines/            引擎插件（system4 已实现）
-└─ setup.py            下载推理引擎、模型、工具
-tools/gui.ps1          截图与模拟点击（冒烟测试用）
+├─ engines/            engine plugins (system4 implemented)
+└─ setup.py            downloads the inference engine, model and tools
+tools/gui.ps1          screenshots and simulated clicks for smoke tests
 ```
 
 ---
 
-## 📜 许可
+## 📜 License
 
-代码以 [GPL-3.0](LICENSE) 发布。System 4 字库格式的解析参考了 [libsys4 / xsystem4](https://github.com/nunuhara/xsystem4)（GPL-2.0+），解包工具 [alice-tools](https://github.com/nunuhara/alice-tools) 为 GPL。
+The code is released under [GPL-3.0](LICENSE). Parsing of the System 4 font format follows [libsys4 / xsystem4](https://github.com/nunuhara/xsystem4) (GPL-2.0+). The unpacking tool [alice-tools](https://github.com/nunuhara/alice-tools) is GPL.
 
 > [!IMPORTANT]
-> 请只对你合法拥有的游戏使用本工具。生成的补丁仅供个人使用，不要分发含有游戏原文或游戏资源的文件。
+> Only use this tool on games you legally own. Generated patches are for personal use. Do not distribute files that contain the game's original text or assets.
